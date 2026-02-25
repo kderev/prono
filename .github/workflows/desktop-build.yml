@@ -68,8 +68,14 @@ jobs:
           flutter config --enable-macos-desktop
           flutter create --platforms=macos .
 
-      - name: Build macOS app
-        run: flutter build macos --release
+      - name: Flutter doctor
+        run: flutter doctor -v
+
+      - name: Precache macOS artifacts
+        run: flutter precache --macos
+
+      - name: Build macOS app (no codesign in CI)
+        run: flutter build macos --release --no-codesign -v
 
       - name: Install create-dmg
         run: brew install create-dmg
