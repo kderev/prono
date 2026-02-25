@@ -79,9 +79,6 @@ jobs:
       - name: Precache macOS artifacts
         run: flutter precache --macos
 
-      - name: Clean build outputs
-        run: flutter clean
-
       - name: Build macOS app (no codesign in CI)
         run: flutter build macos --release --no-codesign -v
 
@@ -90,15 +87,24 @@ jobs:
 
       - name: Build drag-and-drop DMG
         run: |
+          set -euo pipefail
           mkdir -p dist
+          APP_PATH="$(find build/macos/Build/Products/Release -maxdepth 1 -name "*.app" | head -n 1)"
+          if [ -z "$APP_PATH" ]; then
+            echo "No .app found in build/macos/Build/Products/Release"
+            ls -la build/macos/Build/Products/Release || true
+            exit 1
+          fi
+          APP_NAME="$(basename "$APP_PATH")"
+          echo "Using app bundle: $APP_NAME"
           create-dmg \
             --overwrite \
             --volname "Prono" \
             --window-pos 200 120 \
             --window-size 800 400 \
             --icon-size 100 \
-            --icon "prono.app" 200 190 \
-            --hide-extension "prono.app" \
+            --icon "$APP_NAME" 200 190 \
+            --hide-extension "$APP_NAME" \
             --app-drop-link 600 185 \
             "dist/prono-macos.dmg" \
             "build/macos/Build/Products/Release/"
