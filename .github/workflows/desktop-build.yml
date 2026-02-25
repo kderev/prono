@@ -15,11 +15,12 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: 3.24.5
           channel: stable
           cache: true
 
-      - name: Flutter pub get
-        run: flutter pub get
+      - name: Flutter doctor
+        run: flutter doctor -v
 
       - name: Enable and scaffold Windows
         shell: pwsh
@@ -27,8 +28,11 @@ jobs:
           flutter config --enable-windows-desktop
           flutter create --platforms=windows .
 
+      - name: Resolve dependencies
+        run: flutter pub get
+
       - name: Build Windows app
-        run: flutter build windows --release
+        run: flutter build windows --release -v
 
       - name: Compile Inno Setup script
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.5
@@ -57,22 +61,26 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: 3.24.5
           channel: stable
           cache: true
 
-      - name: Flutter pub get
-        run: flutter pub get
+      - name: Flutter doctor
+        run: flutter doctor -v
 
       - name: Enable and scaffold macOS
         run: |
           flutter config --enable-macos-desktop
           flutter create --platforms=macos .
 
-      - name: Flutter doctor
-        run: flutter doctor -v
+      - name: Resolve dependencies
+        run: flutter pub get
 
       - name: Precache macOS artifacts
         run: flutter precache --macos
+
+      - name: Clean build outputs
+        run: flutter clean
 
       - name: Build macOS app (no codesign in CI)
         run: flutter build macos --release --no-codesign -v
