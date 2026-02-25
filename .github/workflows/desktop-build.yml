@@ -2,7 +2,6 @@ name: Build Desktop Installers
 
 on:
   push:
-    branches: ["**"]
   pull_request:
   workflow_dispatch:
 
@@ -17,11 +16,13 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          cache: true
 
       - name: Flutter pub get
         run: flutter pub get
 
       - name: Enable and scaffold Windows
+        shell: pwsh
         run: |
           flutter config --enable-windows-desktop
           flutter create --platforms=windows .
@@ -29,19 +30,23 @@ jobs:
       - name: Build Windows app
         run: flutter build windows --release
 
-      - name: Install Inno Setup
-        run: choco install innosetup -y
+      - name: Compile Inno Setup script
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.5
+        with:
+          path: packaging/windows/prono.iss
 
-      - name: Build installer (.exe)
+      - name: Verify installer output
+        shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path dist/windows | Out-Null
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" ".\packaging\windows\prono.iss"
+          if (!(Test-Path "dist/windows/prono-windows-setup.exe")) {
+            Write-Error "Installer not found at dist/windows/prono-windows-setup.exe"
+          }
 
       - name: Upload Windows installer artifact
         uses: actions/upload-artifact@v4
         with:
           name: prono-windows-installer-exe
-          path: dist/windows/*.exe
+          path: dist/windows/prono-windows-setup.exe
 
   build-macos:
     name: Build macOS drag-and-drop .dmg
@@ -53,6 +58,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          cache: true
 
       - name: Flutter pub get
         run: flutter pub get
@@ -82,6 +88,9 @@ jobs:
             --app-drop-link 600 185 \
             "dist/prono-macos.dmg" \
             "build/macos/Build/Products/Release/"
+
+      - name: Verify DMG output
+        run: test -f dist/prono-macos.dmg
 
       - name: Upload macOS dmg artifact
         uses: actions/upload-artifact@v4
