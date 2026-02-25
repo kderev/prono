@@ -12,6 +12,24 @@ A premium, minimalist cross-platform Flutter UI concept inspired by the cinemati
 - **Reusable components** under `presentation/widgets`, including an animated CTA button and item card.
 - **Responsive UI** using breakpoint-based desktop grid / mobile list.
 
+## Installer l'app sur PC (Windows) ou Mac
+
+Tu peux récupérer de vrais installateurs desktop :
+
+- **Windows** : installeur `.exe`
+- **macOS** : `.dmg` avec installation par glisser-déposer vers `Applications`
+
+### Option A — Télécharger les installateurs depuis GitHub Actions
+
+Le workflow `.github/workflows/desktop-build.yml` génère automatiquement :
+
+- `prono-windows-installer-exe` (contient `prono-windows-setup.exe`)
+- `prono-macos-dmg` (contient `prono-macos.dmg`)
+
+### Option B — Générer localement
+
+Consulte le guide détaillé : [`INSTALL.md`](INSTALL.md).
+
 ## Key files
 
 - `lib/main.dart`

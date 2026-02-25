@@ -1,0 +1,90 @@
+name: Build Desktop Installers
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    name: Build Windows .exe installer
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Enable and scaffold Windows
+        run: |
+          flutter config --enable-windows-desktop
+          flutter create --platforms=windows .
+
+      - name: Build Windows app
+        run: flutter build windows --release
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y
+
+      - name: Build installer (.exe)
+        run: |
+          New-Item -ItemType Directory -Force -Path dist/windows | Out-Null
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" ".\packaging\windows\prono.iss"
+
+      - name: Upload Windows installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: prono-windows-installer-exe
+          path: dist/windows/*.exe
+
+  build-macos:
+    name: Build macOS drag-and-drop .dmg
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Enable and scaffold macOS
+        run: |
+          flutter config --enable-macos-desktop
+          flutter create --platforms=macos .
+
+      - name: Build macOS app
+        run: flutter build macos --release
+
+      - name: Install create-dmg
+        run: brew install create-dmg
+
+      - name: Build drag-and-drop DMG
+        run: |
+          mkdir -p dist
+          create-dmg \
+            --overwrite \
+            --volname "Prono" \
+            --window-pos 200 120 \
+            --window-size 800 400 \
+            --icon-size 100 \
+            --icon "prono.app" 200 190 \
+            --hide-extension "prono.app" \
+            --app-drop-link 600 185 \
+            "dist/prono-macos.dmg" \
+            "build/macos/Build/Products/Release/"
+
+      - name: Upload macOS dmg artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: prono-macos-dmg
+          path: dist/prono-macos.dmg
