@@ -1,0 +1,119 @@
+name: Build Desktop Installers
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    name: Build Windows .exe installer
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.24.5
+          channel: stable
+          cache: true
+
+      - name: Flutter doctor
+        run: flutter doctor -v
+
+      - name: Enable and scaffold Windows
+        shell: pwsh
+        run: |
+          flutter config --enable-windows-desktop
+          flutter create --platforms=windows .
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Build Windows app
+        run: flutter build windows --release -v
+
+      - name: Compile Inno Setup script
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.5
+        with:
+          path: packaging/windows/prono.iss
+
+      - name: Verify installer output
+        shell: pwsh
+        run: |
+          if (!(Test-Path "dist/windows/prono-windows-setup.exe")) {
+            Write-Error "Installer not found at dist/windows/prono-windows-setup.exe"
+          }
+
+      - name: Upload Windows installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: prono-windows-installer-exe
+          path: dist/windows/prono-windows-setup.exe
+
+  build-macos:
+    name: Build macOS drag-and-drop .dmg
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.24.5
+          channel: stable
+          cache: true
+
+      - name: Flutter doctor
+        run: flutter doctor -v
+
+      - name: Enable and scaffold macOS
+        run: |
+          flutter config --enable-macos-desktop
+          flutter create --platforms=macos .
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Precache macOS artifacts
+        run: flutter precache --macos
+
+      - name: Build macOS app (no codesign in CI)
+        run: flutter build macos --release --no-codesign -v
+
+      - name: Install create-dmg
+        run: brew install create-dmg
+
+      - name: Build drag-and-drop DMG
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          APP_PATH="$(find build/macos/Build/Products/Release -maxdepth 1 -name "*.app" | head -n 1)"
+          if [ -z "$APP_PATH" ]; then
+            echo "No .app found in build/macos/Build/Products/Release"
+            ls -la build/macos/Build/Products/Release || true
+            exit 1
+          fi
+          APP_NAME="$(basename "$APP_PATH")"
+          echo "Using app bundle: $APP_NAME"
+          create-dmg \
+            --overwrite \
+            --volname "Prono" \
+            --window-pos 200 120 \
+            --window-size 800 400 \
+            --icon-size 100 \
+            --icon "$APP_NAME" 200 190 \
+            --hide-extension "$APP_NAME" \
+            --app-drop-link 600 185 \
+            "dist/prono-macos.dmg" \
+            "build/macos/Build/Products/Release/"
+
+      - name: Verify DMG output
+        run: test -f dist/prono-macos.dmg
+
+      - name: Upload macOS dmg artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: prono-macos-dmg
+          path: dist/prono-macos.dmg
