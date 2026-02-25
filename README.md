@@ -19,12 +19,17 @@ Tu peux récupérer de vrais installateurs desktop :
 - **Windows** : installeur `.exe`
 - **macOS** : `.dmg` avec installation par glisser-déposer vers `Applications`
 
-### Option A — Télécharger les installateurs depuis GitHub Actions
+### Option A — Télécharger les installateurs depuis GitHub Releases
 
-Le workflow `.github/workflows/desktop-build.yml` génère automatiquement :
+Le workflow `.github/workflows/desktop-build.yml` publie automatiquement :
 
-- `prono-windows-installer-exe` (contient `prono-windows-setup.exe`)
-- `prono-macos-dmg` (contient `prono-macos.dmg`)
+- `prono-windows-setup.exe`
+- `prono-macos.dmg`
+
+dans l'onglet **Releases** (release `desktop-latest` sur `main`/`workflow_dispatch`, ou release de tag).
+
+> Le zip source GitHub ne contient pas le `.dmg`. Télécharge `prono-macos.dmg` depuis **Releases**.
+> Pour un parcours Mac ultra simple (ouvrir DMG → glisser vers Applications → lancer sans alerte), configure aussi les secrets Apple pour activer signature + notarisation (détails dans `INSTALL.md`).
 
 ### Option B — Générer localement
 
