@@ -26,6 +26,8 @@ Le workflow `.github/workflows/desktop-build.yml` génère automatiquement :
 - `prono-windows-installer-exe` (contient `prono-windows-setup.exe`)
 - `prono-macos-dmg` (contient `prono-macos.dmg`)
 
+> Pour un parcours Mac ultra simple (ouvrir DMG → glisser vers Applications → lancer sans alerte), configure les secrets Apple dans GitHub pour activer la signature + notarisation automatiques (détails dans `INSTALL.md`).
+
 ### Option B — Générer localement
 
 Consulte le guide détaillé : [`INSTALL.md`](INSTALL.md).

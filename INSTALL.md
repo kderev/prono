@@ -1,9 +1,23 @@
 # Installation sur Windows et macOS
 
-Ce projet Flutter fournit maintenant des **installateurs desktop** :
+Ce projet Flutter fournit des **installateurs desktop** :
 
 - **Windows** : un installeur `.exe`
 - **macOS** : un `.dmg` avec installation par **drag & drop** vers Applications
+
+## TL;DR pour ton besoin (zip GitHub -> installer)
+
+Si tu veux que quelqu'un télécharge un zip et installe sur Mac sans manip complexe, il faut fournir un **DMG signé + notarizé Apple**.
+
+- Sans signature/notarisation, macOS affiche des blocages de sécurité (Gatekeeper).
+- Avec signature/notarisation, l'utilisateur fait juste : ouvrir DMG -> glisser dans Applications -> lancer.
+
+Le workflow GitHub est déjà prêt pour les 2 modes :
+
+- **Mode simple sans compte Apple dev** : DMG non signé (ça peut bloquer chez certains utilisateurs).
+- **Mode production recommandé** : DMG signé + notarizé automatiquement si les secrets Apple sont configurés.
+
+---
 
 ## 1) Option recommandée : télécharger les installateurs générés automatiquement
 
@@ -35,7 +49,29 @@ Le workflow GitHub Actions `.github/workflows/desktop-build.yml` produit :
 
 ---
 
-## 2) Build local (développeur)
+## 2) Activer le mode macOS “zéro friction” (signature + notarisation)
+
+Ajoute ces **GitHub Secrets** dans le repo :
+
+- `APPLE_CERT_BASE64` : certificat Developer ID Application exporté en `.p12`, encodé en base64
+- `APPLE_CERT_PASSWORD` : mot de passe du `.p12`
+- `APPLE_ID` : email Apple ID
+- `APP_SPECIFIC_PASSWORD` : mot de passe spécifique d'app Apple ID
+- `APPLE_TEAM_ID` : Team ID Apple Developer
+
+Quand ces secrets sont présents, le workflow :
+
+1. importe le certificat,
+2. signe l'app `.app`,
+3. génère et signe le `.dmg`,
+4. envoie le DMG à notarization Apple,
+5. “staple” le ticket sur le DMG.
+
+Résultat: ton contact télécharge, ouvre, glisse dans Applications, lance. Pas de manip Terminal.
+
+---
+
+## 3) Build local (développeur)
 
 ## Prérequis
 

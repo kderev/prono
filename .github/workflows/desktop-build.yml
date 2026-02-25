@@ -55,6 +55,12 @@ jobs:
   build-macos:
     name: Build macOS drag-and-drop .dmg
     runs-on: macos-latest
+    env:
+      APPLE_CERT_BASE64: ${{ secrets.APPLE_CERT_BASE64 }}
+      APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APP_SPECIFIC_PASSWORD: ${{ secrets.APP_SPECIFIC_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
 
@@ -79,8 +85,42 @@ jobs:
       - name: Precache macOS artifacts
         run: flutter precache --macos
 
-      - name: Build macOS app (no codesign in CI)
-        run: flutter build macos --release --no-codesign -v
+      - name: Import Apple certificate (optional)
+        if: env.APPLE_CERT_BASE64 != '' && env.APPLE_CERT_PASSWORD != ''
+        run: |
+          set -euo pipefail
+          CERT_PATH="$RUNNER_TEMP/cert.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain-db"
+          echo "$APPLE_CERT_BASE64" | base64 --decode > "$CERT_PATH"
+          security create-keychain -p "" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$APPLE_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -k "" "$KEYCHAIN_PATH"
+
+      - name: Build macOS app
+        run: |
+          set -euo pipefail
+          if [ -n "${APPLE_CERT_BASE64}" ] && [ -n "${APPLE_CERT_PASSWORD}" ]; then
+            flutter build macos --release -v
+          else
+            flutter build macos --release --no-codesign -v
+          fi
+
+      - name: Codesign .app (optional)
+        if: env.APPLE_CERT_BASE64 != '' && env.APPLE_CERT_PASSWORD != ''
+        run: |
+          set -euo pipefail
+          APP_PATH="$(find build/macos/Build/Products/Release -maxdepth 1 -name "*.app" | head -n 1)"
+          IDENTITY="$(security find-identity -v -p codesigning | awk -F\" '/Developer ID Application/ {print $2; exit}')"
+          if [ -z "$IDENTITY" ]; then
+            echo "No 'Developer ID Application' identity found in keychain"
+            security find-identity -v -p codesigning
+            exit 1
+          fi
+          /usr/bin/codesign --force --options runtime --deep --sign "$IDENTITY" "$APP_PATH"
+          /usr/bin/codesign --verify --verbose=2 "$APP_PATH"
 
       - name: Install create-dmg
         run: brew install create-dmg
@@ -108,6 +148,26 @@ jobs:
             --app-drop-link 600 185 \
             "dist/prono-macos.dmg" \
             "build/macos/Build/Products/Release/"
+
+      - name: Codesign DMG (optional)
+        if: env.APPLE_CERT_BASE64 != '' && env.APPLE_CERT_PASSWORD != ''
+        run: |
+          set -euo pipefail
+          IDENTITY="$(security find-identity -v -p codesigning | awk -F\" '/Developer ID Application/ {print $2; exit}')"
+          /usr/bin/codesign --force --sign "$IDENTITY" "dist/prono-macos.dmg"
+          /usr/bin/codesign --verify --verbose=2 "dist/prono-macos.dmg"
+
+      - name: Notarize DMG (optional)
+        if: env.APPLE_CERT_BASE64 != '' && env.APPLE_CERT_PASSWORD != '' && env.APPLE_ID != '' && env.APP_SPECIFIC_PASSWORD != '' && env.APPLE_TEAM_ID != ''
+        run: |
+          set -euo pipefail
+          xcrun notarytool submit "dist/prono-macos.dmg" \
+            --apple-id "$APPLE_ID" \
+            --password "$APP_SPECIFIC_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+          xcrun stapler staple "dist/prono-macos.dmg"
+          xcrun stapler validate "dist/prono-macos.dmg"
 
       - name: Verify DMG output
         run: test -f dist/prono-macos.dmg
